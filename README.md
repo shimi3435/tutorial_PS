@@ -24,9 +24,9 @@ Open OnDemandを使用する方法と，SSH接続を行う方法の2つの方法
 
 Webフロントサービス/Open OnDemandから，Jupyter LabやPlasma Simulator Shell Access（いわゆるターミナル）を使用できる
 
-注意点としては，Jupyter Labは計算ノードを使用すること，Jupyter Lab開始時のディレクトリが/home/[userID]/になっていること（手引きによるとプログラムなどのデータの置き場は/data/[userID]/が推奨されている）
+注意点としては，Jupyter Labは計算ノードを使用すること，Jupyter Labで使用できるディレクトリが/home/[userID]/以下になっていること（手引きによるとプログラムなどのデータの置き場は/data/[userID]/が推奨されている）
 
-おすすめの使い方：ローカル（自分のPC等）で作成したipynbファイルをGitHubやscpコマンドを使用してプラズマシミュレータの/data/[userID]/以下にコピーした後，または下記のSSH接続+VSCodeを用いてフロントシステム上でipynbファイルを作成後，Jupyter Labを起動してファイルを選択して計算ノード上で実行する
+おすすめの使い方：ローカル（自分のPC等）で作成したipynbファイルをGitHubやscpコマンド，Jupyter LabのUpload機能を使用してプラズマシミュレータにコピーした後，Jupyter Labを起動してファイルを選択して計算ノード上で実行する
 
 ### SSH接続を行う方法
 
@@ -58,9 +58,17 @@ Windowsでは，例えばUbuntuで作成した~/.ssh/をC:\Users\\[username]\\.s
 cp -r ~/.ssh/ /mnt/c/Users/[username]/
 ```
 
+### Python + GPU環境構築
+
+利用の手引き/プラズマシミュレータシステム利用の手引き 第7.6.4 pyenvによる仮想環境の作成 をまねる（3.11.14の仮想環境 myenv_3.11.14を作成したとする）
+
+利用の手引き/プラズマシミュレータシステム利用の手引き 第7.7.1 PyTorch をまねる（コピペの際，改行に注意）
+
+ジョブスクリプトtest_PS.shを作成
+
 SSH接続で接続した先はフロントシステム部であり，GPUが搭載されている計算ノードでプログラムを実行させるためには，上記のOpen OnDemandからJupyter Labを開くか，下記のターミナルからジョブを投げる必要がある
 
-#### ジョブの投げ方
+### ジョブの投げ方
 
 利用の手引き/プラズマシミュレータシステム利用の手引きの第8章を適宜参照
 
@@ -84,6 +92,30 @@ qstat
 qdel [jobID]
 ```
 
-#### Python + GPU
+ジョブが終了すると，[jobName].o[jobID]という出力ファイルが生成される
 
-利用の手引き/プラズマシミュレータシステム利用の手引きの第7.7章を適宜参照
+### Jupyter LabでPython仮想環境を使用する
+
+Webフロントエンドサービス/お問い合わせ・相談先/よくあるお問い合わせや各情報はこちら にある，Plasma Simulator Wiki/Jupyter Lab で matplotlib等のPythonパッケージを使う　を参照した
+
+1. Jupyter Labを開く
+
+2. Othersのターミナルを開く
+
+3. 仮想環境をアクティベート
+
+```bash
+pyenv activate myenv_3.11.14
+```
+
+4. Jupyterに仮想環境を登録
+
+```bash
+python -m ipykernel install --user --name=myenv_3.11.14
+```
+
+5. ターミナルを削除 しばらく待つとLauncherにmyenv_3.11.14が出現
+
+6. test.ipynbをホームディレクトリ配下にコピーして開き，右上の実行環境をmyenv_3.11.14にする
+
+7. 実行する
