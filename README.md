@@ -26,6 +26,16 @@ Webフロントサービス/Open OnDemandから，Jupyter LabやPlasma Simulator
 
 注意点としては，Jupyter Labは計算ノードを使用すること，Jupyter Labで使用できるディレクトリが/home/[userID]/以下になっていること（手引きによるとプログラムなどのデータの置き場は/data/[userID]/が推奨されている）
 
+補足：シンボリックリンク（Windowsでいうショートカット）を作るといいらしい
+
+例：
+```bash
+cd ~
+ln -s /data/t-shimizu/workspace data_workspace #~/data_workspaceは/data/t-shimizu/workspaceへのショートカット 
+cd data_workspace
+ls .
+```
+
 おすすめの使い方：ローカル（自分のPC等）で作成したipynbファイルをGitHubやscpコマンド，Jupyter LabのUpload機能を使用してプラズマシミュレータにコピーした後，Jupyter Labを起動してファイルを選択して計算ノード上で実行する
 
 ### SSH接続を行う方法
@@ -111,7 +121,7 @@ pyenv activate myenv_3.11.14
 4. Jupyterに仮想環境を登録
 
 ```bash
-python -m ipykernel install --user --name=myenv_3.11.14
+python -m ipykernel install --user --name=myenv_3.11.14 #ipykernelがない場合はフロントエンドシステムでpip install ipykernel
 ```
 
 5. ターミナルを削除 しばらく待つとLauncherにmyenv_3.11.14が出現
@@ -119,3 +129,82 @@ python -m ipykernel install --user --name=myenv_3.11.14
 6. test.ipynbをホームディレクトリ配下にコピーして開き，右上の実行環境をmyenv_3.11.14にする
 
 7. 実行する
+
+### JAXをGPUで動かす
+
+python3.10.14（仮想環境名 myenv_3.10.14）で確認
+
+1. まずpatchelfをソースからビルドする（jaxをビルドする際に必要）
+
+```bash
+ls $HOME/.local/bin #デフォルトでこのディレクトリはあるはず
+mkdir -p $HOME/src
+cd $HOME/src
+
+wget https://github.com/NixOS/patchelf/archive/refs/tags/0.18.0.tar.gz -O patchelf-0.18.0.tar.gz
+
+tar xvf patchelf-0.18.0.tar.gz
+cd patchelf-0.18.0
+
+./bootstrap.sh
+./configure --prefix=$HOME/.local
+make
+make install
+```
+
+2. 以下を~/.bashrcに追記し，PATHを通す
+
+```bash
+export PATH="$HOME/.local/bin:$PATH" #いらないかも？
+```
+
+以下のコマンドで確認
+
+```bash
+which patchelf #パスが見えたらOK
+```
+
+3. jaxをソースからビルドする
+
+```bash
+pyenv activate myenv_3.10.14
+
+cd /data/t-shimizu  #userIDに注意
+git clone https://github.com/ROCm/rocm-jax.git -b rocm6
+cd rocm-jax
+
+python stack.py develop
+
+(cd jax_rocm_plugin && make clean dist)
+```
+
+4. pip installする
+
+```python
+pip install /data/t-shimizu/rocm-jax/jax_rocm_plugin/dist/jax_rocm60_pjrt-0.6.0.dev20251203-py3-none-manylinux2014_x86_64.whl --force-reinstall #userIDに注意
+
+pip install jax==0.6.0
+```
+
+5. testのジョブを投げる
+
+```bash
+cd /data/t-shimizu/workspace/python3/tutorial_PS #git cloneしたtutorial_PSのパス
+
+qsub test_JAX_PS.sh
+```
+
+出力が以下のようであればおそらくOK
+
+```bash
+rocm_plugin_extension is not found. #特に問題ないらしい？(chatgpt)
+devices: [RocmDevice(id=0)] #GPUを認識している
+x.device: rocm:0
+y.device: rocm:0
+```
+
+どこかで詰まった場合，.bashrcに以下を追記するといけるかも？（追記した状態で作業したため）
+
+```bash
+export LLVM_PATH=/opt/rocm/llvm
+```
